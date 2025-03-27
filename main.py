@@ -30,15 +30,38 @@ for tr in surveyData.find_all("tr"):
     if not linkEle:
         continue
     if "faculty" in tr.select("td:nth-child(3)")[0].text.lower():
-        # add them to the surveyYes list
-        pass
-    surveyList.append(
-        {
-            "link": etlabLink + linkEle[0].a["href"],
-            "name": tr.select("td:nth-child(2)")[0].text.strip(),
-        }
-    )
-print(surveyList)
+        lnk = etlabLink + linkEle[0].a["href"]
+        facultyfd = BeautifulSoup(session.get(lnk).text, "html.parser").select(
+            "#section-form"
+        )
+        for faculty in facultyfd:
+            facultyTr = faculty.find_next("tr")
+            if (
+                facultyTr.select("td:nth-child(4) > div > span")[0].text.strip()
+                == "Completed"
+            ):
+                # Already completed
+                continue
+            teacherId = faculty.find_next("input", {"name": "teacher_id"})
+            subjectId = teacherId.find_next("input", {"name": "subject_id"}).get(
+                "value"
+            )
+            teacherId = teacherId.get("value")
+            surveyList.append(
+                {
+                    "link": lnk,
+                    "name": facultyTr.select("td:nth-child(2)")[0].text.strip(),
+                    "body": {"teacher_id": teacherId, "subject_id": subjectId},
+                }
+            )
+    else:
+        surveyList.append(
+            {
+                "link": etlabLink + linkEle[0].a["href"],
+                "name": tr.select("td:nth-child(2)")[0].text.strip(),
+            }
+        )
+
 if not surveyList:
     print("No surveys pending.")
     exit()
@@ -51,15 +74,30 @@ def surveySubmitter(SurveyLink: str):
     for question in surveySoup.find_all("div", class_="answer"):
         ans = question.find("input", {"type": "radio"})
         data[ans.get("name")] = ans.get("value")
-        # print(ans.text, ans.attrs, ans.find_next_sibling().string.strip())
-    print(data)
-    print(session.post(SurveyLink, data=data).text)
+    session.post(SurveyLink, data=data)
+
+
+def facultySurveySubmitter(SurveyLink: str, data: dict):
+    soup = BeautifulSoup(session.post(SurveyLink, data=data).text, "html.parser")
+    surveySoup = soup.select("ul.survey")[0]
+    data.update({"environment": "1", "yt0": ""})
+    for question in surveySoup.find_all("div", class_="answer"):
+        ans = question.find("input", {"type": "radio"})
+        if ans:
+            data[ans.get("name")] = ans.get("value")
+        else:
+            ans = question.find("textarea")
+            data[ans.get("name")] = "Great"
+    session.post(SurveyLink, data=data)
 
 
 for survey in surveyList:
-    surveySubmitter(survey["link"])
+    if "body" in survey:
+        facultySurveySubmitter(survey["link"], survey["body"])
+    else:
+        surveySubmitter(survey["link"])
 
 print(
     f"Completed {len(surveyList)} survey(s).\n"
-    f"Surveys \n {'\n'.join([i['name'] for i in surveyList])}"
+    f"Surveys \n{'\n'.join([i['name'] for i in surveyList])}"
 )
