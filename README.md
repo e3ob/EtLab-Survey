@@ -12,7 +12,7 @@ cd EtLab-Survey
 cp sample.env .env
 ```
 and edit the .env file.
-**Quotes are are compulsory !!**
+**Quotes are compulsory !!**
 ###  Methods
 > More methods to be added !
 #### Using venv
