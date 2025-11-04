@@ -67,17 +67,7 @@ if not surveyList:
     exit()
 
 
-def surveySubmitter(SurveyLink: str):
-    soup = BeautifulSoup(session.get(SurveyLink).text, "html.parser")
-    surveySoup = soup.select("ul.survey")[0]
-    data = {"environment": "1", "yt0": ""}
-    for question in surveySoup.find_all("div", class_="answer"):
-        ans = question.find("input", {"type": "radio"})
-        data[ans.get("name")] = ans.get("value")
-    session.post(SurveyLink, data=data)
-
-
-def facultySurveySubmitter(SurveyLink: str, data: dict):
+def surveySubmitter(SurveyLink: str, data: dict = {}):
     soup = BeautifulSoup(session.post(SurveyLink, data=data).text, "html.parser")
     surveySoup = soup.select("ul.survey")[0]
     data.update({"environment": "1", "yt0": ""})
@@ -93,7 +83,7 @@ def facultySurveySubmitter(SurveyLink: str, data: dict):
 
 for survey in surveyList:
     if "body" in survey:
-        facultySurveySubmitter(survey["link"], survey["body"])
+        surveySubmitter(survey["link"], survey["body"])
     else:
         surveySubmitter(survey["link"])
 
